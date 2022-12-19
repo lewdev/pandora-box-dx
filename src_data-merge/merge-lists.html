@@ -1,0 +1,74 @@
+<!doctype html>
+<head>
+  <title>Pandora Box DX - Game List</title>
+</head>
+<body>
+List
+<p id=o></p>
+<textarea id=data></textarea>
+<script>
+let listA = null;
+const loadList = (fileName, cb) => fetch(fileName).then(d => d.text()).then(str => cb(str));
+const loadListA = cb => loadList("pandora-box-dx-list-a.txt", str => {
+    console.log(str.split(/[\n\r]+/));
+    cb(str.split(/[\n\r]+/).map(s => {
+      let [title, players, id] = s.split(" – ");
+      return {
+        id: id ? parseInt(id.replaceAll(/[\(\)]/g, "")) : 0,
+        title,
+        players: players ? players.replaceAll(/[\(\)]/g, "") : 0,
+      };
+    }));
+  })
+;
+const loadListB = cb => loadList("pandora-box-dx-list-b.txt", str => {
+    cb(parseCSV(str).map(s => {
+      let [id, title, category, system] = s;
+      const obj = {id: parseInt(id), title, category, system};
+      if (title.includes("▲")) { obj.title = title.replace(" ▲3D", ""); obj.is3D = 1; }
+      if (title.includes("★4P")) { obj.title = title.replace(" ★4P", ""); }
+      if (title.includes("★3P")) { obj.title = title.replace(" ★3P", ""); }
+      if (!system) delete obj.system;
+      return obj;
+    }));
+  })
+;
+
+const o = document.getElementById("o");
+const data = document.getElementById("data");
+window.onload = () => {
+  loadListA(arr1 => {
+    loadListB(arr2 => {
+      o.innerHTML += arr1.splice(0, 5).map(a => JSON.stringify(a)).join("<br/>")
+      + "<br/>" + arr2.splice(0, 5).map(a => JSON.stringify(a)).join("<br/>")
+      data.value = JSON.stringify(arr2.map(d => {
+        const found = arr1.find(row => row.id === d.id);
+        if (found) {
+          return {...d, players: found.players };
+        }
+        return d;
+      }))
+    });
+  });
+}
+
+function parseCSV(str) {
+  var arr = [];
+  var quote = false;
+  for (var row = 0, col = 0, c = 0; c < str.length; c++) {
+    var cc = str[c], nc = str[c+1];
+    arr[row] = arr[row] || [];
+    arr[row][col] = arr[row][col] || '';
+    if (cc == '"' && quote && nc == '"') { arr[row][col] += cc; ++c; continue; }
+    if (cc == '"') { quote = !quote; continue; }
+    if (cc == ',' && !quote) { ++col; continue; }
+    if (cc == '\r' && nc == '\n' && !quote) { ++row; col = 0; ++c; continue; }
+    if (cc == '\n' && !quote) { ++row; col = 0; continue; }
+    if (cc == '\r' && !quote) { ++row; col = 0; continue; }
+    arr[row][col] += cc;
+  }
+  return arr;
+}
+
+</script>
+</body>
